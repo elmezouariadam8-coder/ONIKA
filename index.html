@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ONIKA – Block Puzzle</title>
+<meta name="description" content="ONIKA – Le jeu de puzzle de blocs le plus addictif. Gratuit, sans pub.">
+<meta name="theme-color" content="#080818">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap');
+
+/* ═══════════════════════════════════════
+   RESET & BASE
+═══════════════════════════════════════ */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
+html{height:100%;overflow:hidden;}
+body{
+  height:100%;overflow:hidden;
+  background:#080818;
+  color:#fff;
+  font-family:'Nunito',sans-serif;
+  touch-action:none;
+  overscroll-behavior:none;
+}
+
+/* ═══════════════════════════════════════
+   BACKGROUND
+═══════════════════════════════════════ */
+#bg{position:fixed;inset:0;z-index:0;pointer-events:none;}
+
+/* ═══════════════════════════════════════
+   APP LAYOUT
+═══════════════════════════════════════ */
+#app{
+  position:relative;z-index:1;
+  display:flex;flex-direction:column;align-items:center;
+  width:100%;max-width:420px;margin:0 auto;
+  height:100dvh;
+  padding:6px 8px 8px;
+  gap:5px;
+}
+
+/* ═══════════════════════════════════════
+   HEADER
+═══════════════════════════════════════ */
+.header{width:100%;text-align:center;line-height:1;}
+.logo{
+  font-size:clamp(22px,7vw,38px);font-weight:900;letter-spacing:5px;
+  background:linear-gradient(135deg,#f72585 0%,#b5179e 25%,#7209b7 50%,#4361ee 75%,#4cc9f0 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  filter:drop-shadow(0 0 20px rgba(114,9,183,0.6));
+}
+.sub{font-size:8px;color:#444;letter-spacing:3px;text-transform:uppercase;margin-top:1px;}
+
+/* ═══════════════════════════════════════
+   SCORES
+═══════════════════════════════════════ */
+.scores{display:flex;gap:4px;width:100%;}
+.sc{
+  flex:1;padding:5px 3px;text-align:center;
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:10px;
+  backdrop-filter:blur(4px);
+}
+.sc .l{font-size:7px;color:#444;text-transform:uppercase;letter-spacing:1px;}
+.sc .v{font-size:clamp(13px,4vw,19px);font-weight:900;color:#4cc9f0;line-height:1.1;}
+.sc.hi .v{color:#ffbe0b;}
+.sc.lv .v{
+  background:linear-gradient(90deg,#f72585,#4361ee);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+
+/* ═══════════════════════════════════════
+   PROGRESS BAR
+═══════════════════════════════════════ */
+.prog-wrap{width:100%;height:3px;background:rgba(255,255,255,0.05);border-radius:99px;overflow:hidden;}
+.prog-bar{height:100%;width:0%;border-radius:99px;transition:width .35s ease;
+  background:linear-gradient(90deg,#f72585,#7209b7,#4cc9f0);}
+
+/* ═══════════════════════════════════════
+   1v1 LIVE BAR (hidden by default)
+═══════════════════════════════════════ */
+.vs-bar{
+  display:none;width:100%;gap:6px;
+  background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);
+  border-radius:10px;padding:5px 8px;
+}
+.vs-bar.on{display:flex;}
+.vs-side{flex:1;text-align:center;}
+.vs-side .vn{font-size:8px;color:#444;text-transform:uppercase;letter-spacing:1px;}
+.vs-side .vv{font-size:16px;font-weight:900;color:#4cc9f0;}
+.vs-side.opp .vv{color:#f72585;}
+.vs-sep{font-size:18px;font-weight:900;color:#333;align-self:center;}
+
+/* ═══════════════════════════════════════
+   GRID
+═══════════════════════════════════════ */
+.grid-wrap{
+  width:100%;flex-shrink:0;
+  background:rgba(255,255,255,0.03);
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:14px;padding:5px;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.02),
+    0 8px 32px rgba(0,0,0,0.4),
+    inset 0 1px 0 rgba(255,255,255,0.04);
+}
+#grid{
+  display:grid;
+  grid-template-columns:repeat(8,1fr);
+  gap:2.5px;
+  width:100%;
+}
+.cell{
+  aspect-ratio:1;
+  border-radius:4px;
+  background:rgba(255,255,255,0.025);
+  border:1px solid rgba(255,255,255,0.035);
+  position:relative;overflow:hidden;
+  transition:background .05s;
+}
+.cell.filled{border-color:transparent;}
+.cell.filled::after{
+  content:'';position:absolute;inset:0;border-radius:3px;
+  background:linear-gradient(145deg,rgba(255,255,255,0.25) 0%,transparent 50%);
+  pointer-events:none;
+}
+.cell.filled::before{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:3px;border-radius:0 0 3px 3px;
+  background:rgba(0,0,0,0.35);pointer-events:none;
+}
+/* Ghost preview - valid */
+.cell.ghost-ok{
+  opacity:0.6;border-color:transparent;
+}
+.cell.ghost-ok::after{
+  content:'';position:absolute;inset:0;border-radius:3px;
+  background:linear-gradient(145deg,rgba(255,255,255,0.2) 0%,transparent 50%);
+}
+/* Ghost preview - invalid */
+.cell.ghost-no{
+  background:rgba(255,40,40,0.2)!important;
+  border-color:rgba(255,60,60,0.4)!important;
+  border-width:1px;
+}
+/* Clearing animation */
+.cell.clearing{
+  animation:cellClear 0.38s cubic-bezier(0.4,0,0.2,1) forwards;
+}
+@keyframes cellClear{
+  0%{transform:scale(1);opacity:1;}
+  40%{transform:scale(1.15);opacity:1;filter:brightness(1.5);}
+  100%{transform:scale(0);opacity:0;}
+}
+/* Landing animation */
+.cell.landing{
+  animation:cellLand 0.18s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes cellLand{
+  from{transform:scale(0.55);opacity:0.3;}
+  to{transform:scale(1);opacity:1;}
+}
+
+/* ═══════════════════════════════════════
+   TRAY
+═══════════════════════════════════════ */
+.tray-label{font-size:8px;color:#333;text-transform:uppercase;letter-spacing:2px;text-align:center;}
+.tray{
+  display:flex;gap:4px;width:100%;flex-shrink:0;
+  background:rgba(255,255,255,0.03);
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:12px;padding:8px 5px;
+  min-height:82px;align-items:center;
+}
+.pslot{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  min-height:60px;border-radius:8px;
+  border:2px solid transparent;
+  transition:opacity .2s,transform .12s,border-color .12s;
+  position:relative;overflow:visible;
+}
+.pslot.used{opacity:0.1;pointer-events:none;}
+.pslot.dragging-source{opacity:0.2;transform:scale(0.88);}
+.piece-preview{display:grid;pointer-events:none;gap:2px;}
+.pm{border-radius:3px;pointer-events:none;box-shadow:inset 0 -2px 0 rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.22);}
+
+/* ═══════════════════════════════════════
+   DRAG GHOST (follows touch/mouse)
+═══════════════════════════════════════ */
+#drag-ghost{
+  position:fixed;
+  top:0;left:0;
+  z-index:9999;
+  pointer-events:none;
+  display:none;
+  will-change:transform;
+  /* Shadow to feel lifted */
+  filter:drop-shadow(0 8px 20px rgba(0,0,0,0.5));
+}
+#drag-ghost .piece-preview{gap:2.5px;}
+#drag-ghost .pm{border-radius:5px;box-shadow:inset 0 -3px 0 rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.3);}
+
+/* ═══════════════════════════════════════
+   BUTTONS
+═══════════════════════════════════════ */
+.btn-row{display:flex;gap:5px;width:100%;flex-shrink:0;}
+.btn{
+  flex:1;padding:9px 5px;border:none;border-radius:10px;
+  font-family:'Nunito',sans-serif;font-size:12px;font-weight:900;
+  cursor:pointer;letter-spacing:.3px;
+  transition:transform .1s,opacity .1s,box-shadow .1s;
+  -webkit-font-smoothing:antialiased;
+}
+.btn:active{transform:scale(0.93)!important;opacity:0.85;}
+.btn-solo{
+  background:linear-gradient(135deg,#f72585,#7209b7);color:#fff;
+  box-shadow:0 3px 16px rgba(247,37,133,0.35);
+}
+.btn-vs{
+  background:linear-gradient(135deg,#ffbe0b,#fb5607);color:#fff;
+  box-shadow:0 3px 14px rgba(251,86,7,0.35);
+}
+.btn-icon{
+  background:rgba(255,255,255,0.05);color:#555;
+  border:1px solid rgba(255,255,255,0.08);
+  font-size:15px;flex:none;width:40px;
+}
+
+/* ═══════════════════════════════════════
+   TOAST / COMBO BANNER
+═══════════════════════════════════════ */
+#toast{
+  position:fixed;top:50%;left:50%;
+  transform:translate(-50%,-50%) scale(0);
+  z-index:600;pointer-events:none;
+  background:linear-gradient(135deg,#f72585,#7209b7);
+  color:#fff;font-size:clamp(17px,5vw,26px);font-weight:900;
+  padding:11px 28px;border-radius:16px;
+  box-shadow:0 0 40px rgba(247,37,133,0.55),0 0 80px rgba(114,9,183,0.3);
+  white-space:nowrap;
+  transition:transform .22s cubic-bezier(0.34,1.56,0.64,1),opacity .22s;
+  opacity:0;
+}
+#toast.show{transform:translate(-50%,-50%) scale(1);opacity:1;}
+
+/* ═══════════════════════════════════════
+   FLOATING SCORE
+═══════════════════════════════════════ */
+.float-pts{
+  position:fixed;font-weight:900;pointer-events:none;z-index:500;
+  animation:floatUp 0.9s ease forwards;
+  text-shadow:0 2px 10px rgba(0,0,0,0.7);
+}
+@keyframes floatUp{
+  0%{transform:translate(-50%,0) scale(1);opacity:1;}
+  100%{transform:translate(-50%,-70px) scale(1.25);opacity:0;}
+}
+
+/* ═══════════════════════════════════════
+   OVERLAYS
+═══════════════════════════════════════ */
+.overlay{
+  display:none;position:fixed;inset:0;z-index:300;
+  background:rgba(0,0,0,0.88);
+  align-items:center;justify-content:center;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+.overlay.visible{display:flex;}
+.modal{
+  background:linear-gradient(160deg,#140328 0%,#080d28 100%);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:22px;
+  padding:26px 20px;
+  text-align:center;
+  max-width:300px;width:90%;
+  box-shadow:0 0 0 1px rgba(255,255,255,0.04),0 20px 60px rgba(0,0,0,0.6),0 0 80px rgba(114,9,183,0.2);
+  animation:modalPop 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes modalPop{from{transform:scale(0.75);opacity:0;}to{transform:scale(1);opacity:1;}}
+.modal-logo{
+  font-size:38px;font-weight:900;letter-spacing:4px;
+  background:linear-gradient(135deg,#f72585,#7209b7,#4cc9f0);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:2px;
+}
+.modal-sub{font-size:10px;color:#444;letter-spacing:1px;margin-bottom:14px;}
+.modal-score{font-size:36px;font-weight:900;color:#4cc9f0;line-height:1;}
+.modal-best{font-size:11px;color:#ffbe0b;margin:6px 0 14px;}
+
+/* MODAL BUTTONS */
+.mbtn{
+  display:block;width:100%;padding:12px;margin-bottom:7px;
+  border:none;border-radius:11px;
+  font-family:'Nunito',sans-serif;font-size:13px;font-weight:900;
+  cursor:pointer;letter-spacing:.3px;
+  transition:transform .1s,opacity .1s;
+  -webkit-font-smoothing:antialiased;
+}
+.mbtn:last-child{margin-bottom:0;}
+.mbtn:active{transform:scale(0.95);opacity:0.85;}
+.mbtn.primary{background:linear-gradient(135deg,#f72585,#7209b7);color:#fff;box-shadow:0 3px 15px rgba(247,37,133,0.35);}
+.mbtn.vs{background:linear-gradient(135deg,#ffbe0b,#fb5607);color:#fff;box-shadow:0 3px 12px rgba(251,86,7,0.3);}
+.mbtn.ghost-btn{background:rgba(255,255,255,0.05);color:#666;border:1px solid rgba(255,255,255,0.08);}
+
+/* ── NAME INPUT ── */
+.name-input{
+  width:100%;padding:10px 12px;margin-bottom:10px;
+  background:rgba(255,255,255,0.06);
+  border:1.5px solid rgba(255,255,255,0.1);
+  border-radius:10px;
+  color:#fff;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;
+  text-align:center;outline:none;
+  transition:border-color .2s;
+}
+.name-input:focus{border-color:#4cc9f0;}
+.name-input::placeholder{color:#333;}
+
+/* ── HOW TO PLAY ── */
+.how{font-size:10px;color:#333;line-height:1.9;margin-top:12px;}
+.how b{color:#4cc9f0;}
+
+/* ── LEADERBOARD ── */
+.lboard{width:100%;margin:8px 0;}
+.lrow{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 10px;border-radius:8px;margin-bottom:3px;
+  background:rgba(255,255,255,0.04);
+}
+.lrow.mine{background:rgba(76,201,240,0.1);border:1px solid rgba(76,201,240,0.18);}
+.lrk{font-size:14px;width:22px;text-align:center;flex-shrink:0;}
+.lnm{flex:1;font-size:12px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#ccc;}
+.lsc{font-size:13px;font-weight:900;color:#4cc9f0;flex-shrink:0;}
+.lrow:nth-child(1) .lrk{color:#ffd700;}
+.lrow:nth-child(2) .lrk{color:#c0c0c0;}
+.lrow:nth-child(3) .lrk{color:#cd7f32;}
+
+/* ── ROOM CODE ── */
+.room-code-disp{
+  font-size:34px;font-weight:900;letter-spacing:8px;
+  color:#ffbe0b;margin:10px 0;
+  text-shadow:0 0 20px rgba(255,190,11,0.5);
+}
+.room-code-input{
+  width:100%;padding:12px;margin-bottom:8px;
+  background:rgba(255,255,255,0.06);
+  border:1.5px solid rgba(255,255,255,0.1);
+  border-radius:10px;
+  color:#fff;font-family:'Nunito',sans-serif;
+  font-size:22px;font-weight:900;letter-spacing:6px;
+  text-align:center;outline:none;text-transform:uppercase;
+  transition:border-color .2s;
+}
+.room-code-input:focus{border-color:#ffbe0b;}
+
+/* ── VS RESULT ── */
+.vsr-scores{display:flex;gap:8px;margin:12px 0;}
+.vsr-p{flex:1;background:rgba(255,255,255,0.05);border-radius:10px;padding:10px 6px;text-align:center;}
+.vsr-p .vn{font-size:9px;color:#444;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;}
+.vsr-p .vv{font-size:22px;font-weight:900;color:#4cc9f0;}
+.vsr-p.opp-side .vv{color:#f72585;}
+.vsr-p.me-side{border:1px solid rgba(76,201,240,0.2);}
+.vsr-p.opp-side{border:1px solid rgba(247,37,133,0.2);}
+</style>
+</head>
+<body>
+
+<!-- BACKGROUND CANVAS -->
+<canvas id="bg"></canvas>
+
+<!-- DRAG GHOST -->
+<div id="drag-ghost">
+  <div class="piece-preview" id="ghost-inner"></div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- ══════════════════════════════════════
+     OVERLAYS
+══════════════════════════════════════ -->
+
+<!-- WELCOME -->
+<div class="overlay visible" id="ov-welcome">
+  <div class="modal">
+    <div class="modal-logo">ONIKA</div>
+    <div class="modal-sub">Block Puzzle • Gratuit • Sans pub</div>
+    <input class="name-input" id="name-input" placeholder="Ton pseudo..." maxlength="14" autocomplete="off" spellcheck="false">
+    <button class="mbtn primary" id="btn-play-solo">🎮 Jouer en solo</button>
+    <button class="mbtn vs" id="btn-play-vs">⚡ Jouer en 1v1</button>
+    <div class="how">
+      <b>Comment jouer :</b><br>
+      Maintiens ton doigt sur une pièce<br>
+      Glisse-la sur la grille où tu veux<br>
+      Relâche pour poser la pièce 🎯<br>
+      Remplis des lignes ou colonnes 🔥
+    </div>
+  </div>
+</div>
+
+<!-- GAME OVER -->
+<div class="overlay" id="ov-gameover">
+  <div class="modal">
+    <div class="modal-logo">ONIKA</div>
+    <div class="modal-sub">Partie terminée</div>
+    <div class="modal-score" id="go-score">0</div>
+    <div class="modal-best" id="go-best">Meilleur : 0</div>
+    <div class="lboard" id="lboard-go"></div>
+    <button class="mbtn primary" id="btn-replay">🔄 Rejouer</button>
+    <button class="mbtn vs" id="btn-go-1v1">⚡ Lancer un 1v1</button>
+    <button class="mbtn ghost-btn" id="btn-go-rank">🏆 Classement mondial</button>
+  </div>
+</div>
+
+<!-- LEADERBOARD -->
+<div class="overlay" id="ov-rank">
+  <div class="modal">
+    <div class="modal-logo" style="font-size:24px;margin-bottom:6px;">🏆 Top 5 Mondial</div>
+    <div class="modal-sub">Classement en temps réel</div>
+    <div class="lboard" id="lboard-rank"></div>
+    <button class="mbtn ghost-btn" id="btn-rank-back">← Retour</button>
+  </div>
+</div>
+
+<!-- 1v1 MENU -->
+<div class="overlay" id="ov-vsmenu">
+  <div class="modal">
+    <div class="modal-logo" style="font-size:22px;">⚡ 1v1 en ligne</div>
+    <div class="modal-sub">Défie un ami en temps réel</div>
+    <button class="mbtn vs" id="btn-create-room">🎯 Créer une salle</button>
+    <div style="font-size:9px;color:#333;margin:5px 0;letter-spacing:1px;">— OU —</div>
+    <input class="room-code-input" id="join-code" placeholder="CODE" maxlength="4" autocomplete="off">
+    <button class="mbtn primary" id="btn-join-room">🔗 Rejoindre la salle</button>
+    <button class="mbtn ghost-btn" id="btn-vs-back">← Annuler</button>
+  </div>
+</div>
+
+<!-- WAITING FOR OPPONENT -->
+<div class="overlay" id="ov-waiting">
+  <div class="modal">
+    <div class="modal-logo" style="font-size:20px;">⏳ En attente...</div>
+    <div class="modal-sub">Partage ce code à ton ami !</div>
+    <div class="room-code-disp" id="room-code-disp">----</div>
+    <div style="font-size:11px;color:#444;margin-bottom:14px;" id="wait-status">En attente d'un adversaire...</div>
+    <button class="mbtn ghost-btn" id="btn-cancel-wait">✕ Annuler</button>
+  </div>
+</div>
+
+<!-- 1v1 RESULT -->
+<div class="overlay" id="ov-vsresult">
+  <div class="modal">
+    <div class="modal-logo" id="vsr-title" style="font-size:26px;">🏆 Victoire !</div>
+    <div class="modal-sub" id="vsr-sub">Bien joué !</div>
+    <div class="vsr-scores">
+      <div class="vsr-p me-side">
+        <div class="vn" id="vsr-me-name">Toi</div>
+        <div class="vv" id="vsr-me-score">0</div>
+      </div>
+      <div class="vsr-p opp-side">
+        <div class="vn" id="vsr-opp-name">Adversaire</div>
+        <div class="vv" id="vsr-opp-score">0</div>
+      </div>
+    </div>
+    <button class="mbtn primary" id="btn-vsr-solo">🔄 Solo</button>
+    <button class="mbtn vs" id="btn-vsr-newvs">⚡ Nouveau 1v1</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     GAME UI
+══════════════════════════════════════ -->
+<div id="app">
+
+  <div class="header">
+    <div class="logo">ONIKA</div>
+    <div class="sub">Block Puzzle</div>
+  </div>
+
+  <div class="scores">
+    <div class="sc"><div class="l">Score</div><div class="v" id="ui-score">0</div></div>
+    <div class="sc hi"><div class="l">Meilleur</div><div class="v" id="ui-best">0</div></div>
+    <div class="sc lv"><div class="l">Niveau</div><div class="v" id="ui-level">1</div></div>
+  </div>
+
+  <div class="prog-wrap"><div class="prog-bar" id="prog-bar"></div></div>
+
+  <!-- 1v1 live scores (hidden by default) -->
+  <div class="vs-bar" id="vs-bar">
+    <div class="vs-side"><div class="vn" id="vs-me-name">Moi</div><div class="vv" id="vs-me-pts">0</div></div>
+    <div class="vs-sep">VS</div>
+    <div class="vs-side opp"><div class="vn" id="vs-opp-name">Adversaire</div><div class="vv" id="vs-opp-pts">0</div></div>
+  </div>
+
+  <div class="grid-wrap">
+    <div id="grid"></div>
+  </div>
+
+  <div class="tray-label">Glisse une pièce sur la grille</div>
+  <div class="tray" id="tray"></div>
+
+  <div class="btn-row">
+    <button class="btn btn-icon" id="btn-rank-icon" title="Classement">🏆</button>
+    <button class="btn btn-solo" id="btn-new-game">Nouvelle partie</button>
+    <button class="btn btn-vs" id="btn-open-vs">⚡ 1v1</button>
+  </div>
+
+</div>
+
+<script>
+/* ════════════════════════════════════════════
+   BACKGROUND ANIMATION
+════════════════════════════════════════════ */
+(function(){
+  const canvas = document.getElementById('bg');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles = [];
+
+  function resize(){
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    particles = Array.from({length:90}, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: Math.random() * 1.4 + 0.3,
+      a: Math.random() * 0.6 + 0.05,
+      da: (Math.random() - 0.5) * 0.007,
+      hue: 220 + Math.random() * 70
+    }));
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    // Subtle gradient bg overlay
+    const g = ctx.createRadialGradient(W*0.5,H*0.3,0,W*0.5,H*0.3,W*0.8);
+    g.addColorStop(0,'rgba(114,9,183,0.06)');
+    g.addColorStop(1,'transparent');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,W,H);
+
+    particles.forEach(p => {
+      p.a = Math.max(0.04, Math.min(0.7, p.a + p.da));
+      if(p.a <= 0.04 || p.a >= 0.7) p.da *= -1;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = `hsla(${p.hue},80%,80%,${p.a})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize', resize);
+  resize(); draw();
+})();
+
+/* ════════════════════════════════════════════
+   FIREBASE SETUP
+   → Remplace FIREBASE_CFG avec tes vraies valeurs Firebase
+════════════════════════════════════════════ */
+const FIREBASE_CFG = null;
+// Exemple quand tu auras Firebase:
+// const FIREBASE_CFG = {
+//   apiKey: "AIza...",
+//   databaseURL: "https://onika-xxx-default-rtdb.firebaseio.com",
+//   projectId: "onika-xxx",
+//   appId: "1:xxx:web:xxx"
+// };
+
+let DB = null;
+(async function initFB(){
+  if(!FIREBASE_CFG) return;
+  try {
+    const {initializeApp} = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
+    const fb = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js');
+    const app = initializeApp(FIREBASE_CFG);
+    const db = fb.getDatabase(app);
+    DB = {
+      ref: (path) => fb.ref(db, path),
+      set: fb.set, get: fb.get, update: fb.update,
+      remove: fb.remove, onValue: fb.onValue, off: fb.off
+    };
+    console.log('✅ Firebase connecté');
+  } catch(e) { console.warn('Firebase non configuré:', e.message); }
+})();
+
+/* ════════════════════════════════════════════
+   GAME CONSTANTS
+════════════════════════════════════════════ */
+const GRID_SIZE = 8;
+
+const PIECE_COLORS = [
+  {fill:'#f72585', shadow:'#a0154d'},
+  {fill:'#7209b7', shadow:'#4a0578'},
+  {fill:'#4361ee', shadow:'#1a3aaa'},
+  {fill:'#4cc9f0', shadow:'#1a8cb0'},
+  {fill:'#06d6a0', shadow:'#028a60'},
+  {fill:'#ffbe0b', shadow:'#b08000'},
+  {fill:'#fb5607', shadow:'#b03000'},
+  {fill:'#c77dff', shadow:'#7b2d8b'},
+];
+
+const ALL_SHAPES = [
+  // 1x1
+  [[1]],
+  // 1x2 / 2x1
+  [[1,1]],
+  [[1],[1]],
+  // 1x3 / 3x1
+  [[1,1,1]],
+  [[1],[1],[1]],
+  // 1x4 / 4x1
+  [[1,1,1,1]],
+  [[1],[1],[1],[1]],
+  // 1x5 / 5x1
+  [[1,1,1,1,1]],
+  [[1],[1],[1],[1],[1]],
+  // 2x2
+  [[1,1],[1,1]],
+  // 3x3
+  [[1,1,1],[1,1,1],[1,1,1]],
+  // L shapes
+  [[1,0],[1,0],[1,1]],
+  [[0,1],[0,1],[1,1]],
+  [[1,1],[1,0],[1,0]],
+  [[1,1],[0,1],[0,1]],
+  [[1,1,1],[1,0,0]],
+  [[1,1,1],[0,0,1]],
+  [[1,0,0],[1,1,1]],
+  [[0,0,1],[1,1,1]],
+  // T shapes
+  [[1,1,1],[0,1,0]],
+  [[0,1,0],[1,1,1]],
+  [[1,0],[1,1],[1,0]],
+  [[0,1],[1,1],[0,1]],
+  // S/Z shapes
+  [[0,1,1],[1,1,0]],
+  [[1,1,0],[0,1,1]],
+  [[1,0],[1,1],[0,1]],
+  [[0,1],[1,1],[1,0]],
+  // Big L
+  [[1,0],[1,0],[1,0],[1,1]],
+  [[0,1],[0,1],[0,1],[1,1]],
+  [[1,1],[1,0],[1,0],[1,0]],
+  [[1,1],[0,1],[0,1],[0,1]],
+  // 2x3 / 3x2
+  [[1,1],[1,1],[1,1]],
+  [[1,1,1],[1,1,1]],
+];
+
+/* ════════════════════════════════════════════
+   GAME STATE
+════════════════════════════════════════════ */
+let grid = [];
+let score = 0, best = 0, level = 1, xp = 0;
+let pieces = [], gameActive = false;
+
+// Drag state
+let dragPieceIdx = -1;
+let ghostCells = [], ghostIsValid = false;
+let dropRow = -1, dropCol = -1;
+let isDragging = false;
+let cellPixels = 0; // size of one grid cell in px
+
+// 1v1 state
+let vsRoom = null, vsRole = null;
+let vsOpponentName = '', vsOpponentScore = 0;
+let vsUnsubscribe = null;
+
+// Player
+let playerName = '';
+
+// Load saved data
+try {
+  best = parseInt(localStorage.getItem('onika_best')) || 0;
+  playerName = localStorage.getItem('onika_name') || '';
+} catch(e){}
+
+/* ════════════════════════════════════════════
+   UTILITY
+════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const showModal = id => $(id).classList.add('visible');
+const hideModal = id => $(id).classList.remove('visible');
+const fmtNum = n => Number(n).toLocaleString('fr-FR');
+
+function saveName(){
+  playerName = $('name-input').value.trim() || 'Joueur';
+  try { localStorage.setItem('onika_name', playerName); } catch(e){}
+}
+
+/* ════════════════════════════════════════════
+   BUTTON WIRING — ALL BUTTONS
+════════════════════════════════════════════ */
+function wireButtons(){
+  // Welcome screen
+  $('btn-play-solo').onclick = () => { saveName(); hideModal('ov-welcome'); newGame(); };
+  $('btn-play-vs').onclick = () => { saveName(); hideModal('ov-welcome'); showModal('ov-vsmenu'); };
+
+  // Game over screen
+  $('btn-replay').onclick = () => { hideModal('ov-gameover'); newGame(); };
+  $('btn-go-1v1').onclick = () => { hideModal('ov-gameover'); showModal('ov-vsmenu'); };
+  $('btn-go-rank').onclick = () => { hideModal('ov-gameover'); openLeaderboard(); };
+
+  // In-game buttons
+  $('btn-new-game').onclick = () => { if(vsRoom) endVSGame(true); hideModal('ov-gameover'); newGame(); };
+  $('btn-open-vs').onclick = () => showModal('ov-vsmenu');
+  $('btn-rank-icon').onclick = () => openLeaderboard();
+
+  // Leaderboard
+  $('btn-rank-back').onclick = () => hideModal('ov-rank');
+
+  // 1v1 menu
+  $('btn-create-room').onclick = () => createRoom();
+  $('btn-join-room').onclick = () => joinRoom();
+  $('btn-vs-back').onclick = () => hideModal('ov-vsmenu');
+  $('join-code').oninput = e => e.target.value = e.target.value.toUpperCase();
+
+  // Waiting
+  $('btn-cancel-wait').onclick = () => cancelWaiting();
+
+  // VS Result
+  $('btn-vsr-solo').onclick = () => { hideModal('ov-vsresult'); newGame(); };
+  $('btn-vsr-newvs').onclick = () => { hideModal('ov-vsresult'); showModal('ov-vsmenu'); };
+}
+
+/* ════════════════════════════════════════════
+   LEADERBOARD
+════════════════════════════════════════════ */
+function openLeaderboard(){
+  showModal('ov-rank');
+  loadLeaderboard('lboard-rank');
+}
+
+async function loadLeaderboard(elementId){
+  const el = $(elementId);
+  el.innerHTML = '<div style="color:#333;font-size:11px;text-align:center;padding:10px;">Chargement...</div>';
+
+  if(!DB){
+    el.innerHTML = `
+      <div style="color:#333;font-size:11px;text-align:center;padding:10px;line-height:1.8;">
+        🌍 Classement mondial<br>
+        <span style="color:#222;">Configure Firebase pour activer<br>le classement en temps réel !</span>
+      </div>`;
+    return;
+  }
+
+  try {
+    const snap = await DB.get(DB.ref('leaderboard'));
+    const data = snap.val() || {};
+    const sorted = Object.values(data).sort((a,b) => b.score - a.score).slice(0,5);
+
+    if(!sorted.length){
+      el.innerHTML = '<div style="color:#333;font-size:11px;text-align:center;padding:10px;">Aucun score encore — sois le premier ! 🚀</div>';
+      return;
+    }
+
+    const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+    el.innerHTML = sorted.map((entry, i) => `
+      <div class="lrow ${entry.name === playerName ? 'mine' : ''}">
+        <span class="lrk">${medals[i]}</span>
+        <span class="lnm">${entry.name}</span>
+        <span class="lsc">${fmtNum(entry.score)}</span>
+      </div>`).join('');
+  } catch(e){
+    el.innerHTML = '<div style="color:#f33;font-size:11px;text-align:center;">Erreur de connexion</div>';
+  }
+}
+
+async function submitScore(){
+  if(!DB || !playerName || score <= 0) return;
+  const key = playerName.replace(/[.#$[\]/]/g,'_');
+  try {
+    const snap = await DB.get(DB.ref(`leaderboard/${key}`));
+    const current = snap.val();
+    if(!current || score > current.score){
+      await DB.set(DB.ref(`leaderboard/${key}`), {
+        name: playerName, score: score, ts: Date.now()
+      });
+    }
+  } catch(e){}
+}
+
+/* ════════════════════════════════════════════
+   1v1 SYSTEM
+════════════════════════════════════════════ */
+function genCode(){
+  return Math.random().toString(36).substring(2,6).toUpperCase();
+}
+
+async function createRoom(){
+  if(!DB){ showToast('⚠️ Active Firebase pour le 1v1 !'); return; }
+  const code = genCode();
+  vsRoom = code; vsRole = 'host';
+  hideModal('ov-vsmenu');
+
+  try {
+    await DB.set(DB.ref(`rooms/${code}`), {
+      host: { name: playerName, score: 0 },
+      status: 'waiting',
+      created: Date.now()
+    });
+  } catch(e){ showToast('Erreur Firebase'); return; }
+
+  $('room-code-disp').textContent = code;
+  $('wait-status').textContent = "En attente d'un adversaire...";
+  showModal('ov-waiting');
+
+  vsUnsubscribe = DB.onValue(DB.ref(`rooms/${code}`), snap => {
+    const d = snap.val();
+    if(!d) return;
+    if(d.status === 'playing' && d.guest){
+      vsOpponentName = d.guest.name;
+      hideModal('ov-waiting');
+      launchVSGame();
+    }
+    if(d.status === 'done') resolveVSGame();
+  });
+}
+
+async function joinRoom(){
+  if(!DB){ showToast('⚠️ Active Firebase pour le 1v1 !'); return; }
+  const code = $('join-code').value.trim().toUpperCase();
+  if(code.length !== 4){ showToast('Code à 4 lettres !'); return; }
+
+  try {
+    const snap = await DB.get(DB.ref(`rooms/${code}`));
+    const d = snap.val();
+    if(!d){ showToast('Salle introuvable !'); return; }
+    if(d.status !== 'waiting'){ showToast('Salle pleine ou déjà commencée !'); return; }
+
+    vsRoom = code; vsRole = 'guest';
+    vsOpponentName = d.host.name;
+
+    await DB.update(DB.ref(`rooms/${code}`), {
+      guest: { name: playerName, score: 0 },
+      status: 'playing'
+    });
+
+    hideModal('ov-vsmenu');
+    launchVSGame();
+
+    vsUnsubscribe = DB.onValue(DB.ref(`rooms/${code}`), snap => {
+      const d = snap.val();
+      if(!d) return;
+      const opKey = 'host';
+      if(d[opKey]){ vsOpponentScore = d[opKey].score || 0; $('vs-opp-pts').textContent = fmtNum(vsOpponentScore); }
+      if(d.status === 'done') resolveVSGame();
+    });
+  } catch(e){ showToast('Erreur : ' + e.message); }
+}
+
+function launchVSGame(){
+  $('vs-bar').classList.add('on');
+  $('vs-me-name').textContent = playerName;
+  $('vs-opp-name').textContent = vsOpponentName;
+  $('vs-me-pts').textContent = '0';
+  $('vs-opp-pts').textContent = '0';
+  newGame();
+}
+
+async function pushVSScore(){
+  if(!vsRoom || !DB) return;
+  const myKey = vsRole === 'host' ? 'host' : 'guest';
+  try {
+    await DB.update(DB.ref(`rooms/${vsRoom}/${myKey}`), { score });
+    // Read opponent score
+    const opKey = vsRole === 'host' ? 'guest' : 'host';
+    const snap = await DB.get(DB.ref(`rooms/${vsRoom}/${opKey}`));
+    const op = snap.val();
+    if(op){ vsOpponentScore = op.score || 0; $('vs-opp-pts').textContent = fmtNum(vsOpponentScore); }
+  } catch(e){}
+}
+
+function resolveVSGame(){
+  if(vsUnsubscribe){ vsUnsubscribe(); vsUnsubscribe = null; }
+  const won = score > vsOpponentScore;
+  $('vsr-title').textContent = won ? '🏆 VICTOIRE !' : '💀 DÉFAITE';
+  $('vsr-sub').textContent = won ? 'Tu as écrasé ton adversaire !' : 'Revanche ?';
+  $('vsr-me-name').textContent = playerName;
+  $('vsr-me-score').textContent = fmtNum(score);
+  $('vsr-opp-name').textContent = vsOpponentName;
+  $('vsr-opp-score').textContent = fmtNum(vsOpponentScore);
+  $('vs-bar').classList.remove('on');
+  hideModal('ov-waiting');
+  showModal('ov-vsresult');
+  if(vsRole === 'host' && DB){
+    DB.remove(DB.ref(`rooms/${vsRoom}`)).catch(()=>{});
+  }
+  vsRoom = null; vsRole = null;
+}
+
+async function endVSGame(silent = false){
+  if(!vsRoom) return;
+  if(DB) try { await DB.update(DB.ref(`rooms/${vsRoom}`), {status:'done'}); } catch(e){}
+  if(!silent) resolveVSGame();
+  else { $('vs-bar').classList.remove('on'); vsRoom = null; vsRole = null; }
+}
+
+function cancelWaiting(){
+  if(vsRoom && DB) DB.remove(DB.ref(`rooms/${vsRoom}`)).catch(()=>{});
+  if(vsUnsubscribe){ vsUnsubscribe(); vsUnsubscribe = null; }
+  vsRoom = null; vsRole = null;
+  hideModal('ov-waiting');
+  showModal('ov-vsmenu');
+}
+
+/* ════════════════════════════════════════════
+   GAME CORE
+════════════════════════════════════════════ */
+function newGame(){
+  grid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(null));
+  score = 0; level = 1; xp = 0;
+  dragPieceIdx = -1; ghostCells = []; ghostIsValid = false;
+  isDragging = false; gameActive = true;
+  updateHUD();
+  renderGrid();
+  spawnPieces();
+}
+
+/* ── PIECES ── */
+function makeRandomPiece(){
+  // Weighted pool: favor medium/large pieces
+  const pool = [];
+  ALL_SHAPES.forEach((shape, i) => {
+    const size = shape.flat().filter(Boolean).length;
+    const weight = size >= 5 ? 4 : size >= 4 ? 3 : size >= 3 ? 2 : 1;
+    for(let w = 0; w < weight; w++) pool.push(i);
+  });
+  const shapeIdx = pool[Math.floor(Math.random() * pool.length)];
+  const colorIdx = Math.floor(Math.random() * PIECE_COLORS.length);
+  return { shape: ALL_SHAPES[shapeIdx], color: PIECE_COLORS[colorIdx], used: false };
+}
+
+function spawnPieces(){
+  dragPieceIdx = -1;
+  pieces = [makeRandomPiece(), makeRandomPiece(), makeRandomPiece()];
+  renderTray();
+  if(!anyMoveExists()) setTimeout(() => endGame(), 300);
+}
+
+function anyMoveExists(){
+  return pieces.some(p => !p.used && canFitAnywhere(p.shape));
+}
+
+function canFitAnywhere(shape){
+  for(let r = 0; r < GRID_SIZE; r++)
+    for(let c = 0; c < GRID_SIZE; c++)
+      if(canFit(shape, r, c)) return true;
+  return false;
+}
+
+function canFit(shape, startR, startC){
+  for(let dr = 0; dr < shape.length; dr++)
+    for(let dc = 0; dc < shape[dr].length; dc++)
+      if(shape[dr][dc]){
+        const nr = startR + dr, nc = startC + dc;
+        if(nr < 0 || nr >= GRID_SIZE || nc < 0 || nc >= GRID_SIZE || grid[nr][nc]) return false;
+      }
+  return true;
+}
+
+/* ── PLACE PIECE ── */
+function placePiece(row, col){
+  if(dragPieceIdx < 0 || !gameActive) return;
+  const p = pieces[dragPieceIdx];
+  if(p.used || !canFit(p.shape, row, col)) return;
+
+  const newCells = [];
+  for(let dr = 0; dr < p.shape.length; dr++)
+    for(let dc = 0; dc < p.shape[dr].length; dc++)
+      if(p.shape[dr][dc]){
+        grid[row+dr][col+dc] = p.color;
+        newCells.push([row+dr, col+dc]);
+      }
+
+  const pts = newCells.length * 10 * level;
+  score += pts;
+  showFloatingScore('+' + pts, newCells[0]);
+
+  p.used = true;
+  dragPieceIdx = -1;
+  ghostCells = []; ghostIsValid = false;
+
+  renderGrid([], [], [], [], newCells);
+  renderTray();
+  if(vsRoom) pushVSScore();
+
+  // Small delay then check lines
+  setTimeout(() => checkAndClearLines(), 85);
+}
+
+/* ── LINE CLEARING ── */
+function checkAndClearLines(){
+  const fullRows = [], fullCols = [];
+  for(let r = 0; r < GRID_SIZE; r++)
+    if(grid[r].every(c => c !== null)) fullRows.push(r);
+  for(let c = 0; c < GRID_SIZE; c++)
+    if(grid.every(row => row[c] !== null)) fullCols.push(c);
+
+  const total = fullRows.length + fullCols.length;
+
+  if(!total){
+    updateHUD();
+    if(pieces.every(p => p.used)) spawnPieces();
+    else if(!anyMoveExists()) setTimeout(() => endGame(), 300);
+    return;
+  }
+
+  // Show clearing animation
+  renderGrid([], [], fullRows, fullCols, []);
+
+  // Compute bonus
+  const linesBonus = (fullRows.length + fullCols.length) * 100;
+  const comboMult = total >= 6 ? 5 : total >= 4 ? 4 : total >= 3 ? 3 : total >= 2 ? 2 : 1;
+  const bonus = linesBonus * comboMult * level;
+  score += bonus;
+  xp += total * 15;
+
+  // Level up
+  const xpNeeded = level * 80;
+  if(xp >= xpNeeded){ xp -= xpNeeded; level++; }
+
+  // Toast
+  const msg = total >= 6 ? '🌟 LÉGENDAIRE !' :
+              total >= 4 ? '🔥 INCROYABLE !' :
+              total >= 3 ? `⚡ COMBO x${total} !` :
+              total >= 2 ? '✨ DOUBLE LIGNE !' : '👍 LIGNE !';
+  showToast(msg);
+  showFloatingScore('+' + fmtNum(bonus), [Math.floor(GRID_SIZE/2), Math.floor(GRID_SIZE/2)], true);
+
+  if(vsRoom) pushVSScore();
+
+  setTimeout(() => {
+    fullRows.forEach(r => grid[r].fill(null));
+    fullCols.forEach(c => grid.forEach(row => row[c] = null));
+    updateHUD();
+    renderGrid();
+    if(pieces.every(p => p.used)) spawnPieces();
+    else if(!anyMoveExists()) setTimeout(() => endGame(), 300);
+  }, 380);
+}
+
+/* ── END GAME ── */
+async function endGame(){
+  gameActive = false;
+
+  if(vsRoom){ endVSGame(); return; }
+
+  if(score > best){
+    best = score;
+    try { localStorage.setItem('onika_best', best); } catch(e){}
+  }
+  submitScore();
+
+  $('go-score').textContent = fmtNum(score) + ' pts';
+  $('go-best').textContent = '🏆 Meilleur : ' + fmtNum(best) + ' pts';
+  $('ui-best').textContent = fmtNum(best);
+  loadLeaderboard('lboard-go');
+  showModal('ov-gameover');
+}
+
+/* ════════════════════════════════════════════
+   GHOST PREVIEW
+════════════════════════════════════════════ */
+function computeGhost(row, col){
+  if(dragPieceIdx < 0){ ghostCells = []; ghostIsValid = false; return; }
+  const shape = pieces[dragPieceIdx].shape;
+  const valid = [];
+  let hasInvalid = false;
+
+  for(let dr = 0; dr < shape.length; dr++)
+    for(let dc = 0; dc < shape[dr].length; dc++)
+      if(shape[dr][dc]){
+        const nr = row+dr, nc = col+dc;
+        if(nr < 0 || nr >= GRID_SIZE || nc < 0 || nc >= GRID_SIZE || grid[nr][nc])
+          hasInvalid = true;
+        else
+          valid.push(nr + ',' + nc);
+      }
+
+  ghostIsValid = !hasInvalid;
+  ghostCells = valid;
+}
+
+/* ════════════════════════════════════════════
+   RENDER GRID
+════════════════════════════════════════════ */
+function renderGrid(ghostOK, ghostNO, clearRows, clearCols, landCells){
+  const gridEl = $('grid');
+  const frag = document.createDocumentFragment();
+
+  const gc = ghostOK || (ghostIsValid ? ghostCells : []);
+  const gn = ghostNO || (!ghostIsValid ? ghostCells : []);
+  const cr = clearRows || [];
+  const cc = clearCols || [];
+  const lc = landCells || [];
+
+  for(let r = 0; r < GRID_SIZE; r++){
+    for(let c = 0; c < GRID_SIZE; c++){
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      const key = r + ',' + c;
+      const isClearing = cr.includes(r) || cc.includes(c);
+      const isLanding = lc.some(([lr,lc2]) => lr===r && lc2===c);
+
+      if(grid[r][c]){
+        cell.classList.add('filled');
+        if(isClearing) cell.classList.add('clearing');
+        else if(isLanding) cell.classList.add('landing');
+        cell.style.background = grid[r][c].fill;
+        cell.style.boxShadow = `inset 0 -3px 0 ${grid[r][c].shadow}`;
+      }
+      else if(gc.includes(key)){
+        cell.classList.add('filled','ghost-ok');
+        const col = dragPieceIdx >= 0 ? pieces[dragPieceIdx].color : {fill:'#fff',shadow:'#aaa'};
+        cell.style.background = col.fill;
+        cell.style.boxShadow = `inset 0 -3px 0 ${col.shadow}`;
+      }
+      else if(gn.includes(key)){
+        cell.classList.add('ghost-no');
+      }
+
+      frag.appendChild(cell);
+    }
+  }
+
+  gridEl.innerHTML = '';
+  gridEl.appendChild(frag);
+}
+
+/* ════════════════════════════════════════════
+   RENDER TRAY
+════════════════════════════════════════════ */
+function renderTray(){
+  const tray = $('tray');
+  tray.innerHTML = '';
+
+  const availW = Math.min(420, window.innerWidth) - 16 - 30; // padding + gaps
+  const cellSz = Math.max(9, Math.min(13, Math.floor(availW / (3 * 5 + 10))));
+
+  pieces.forEach((piece, idx) => {
+    const slot = document.createElement('div');
+    slot.className = 'pslot' +
+      (piece.used ? ' used' : '') +
+      (idx === dragPieceIdx ? ' dragging-source' : '');
+
+    const preview = document.createElement('div');
+    preview.className = 'piece-preview';
+    preview.style.gridTemplateColumns = `repeat(${piece.shape[0].length}, ${cellSz}px)`;
+    preview.style.gap = '2px';
+
+    piece.shape.forEach(row => row.forEach(v => {
+      const cell = document.createElement('div');
+      cell.className = 'pm';
+      cell.style.width = cellSz + 'px';
+      cell.style.height = cellSz + 'px';
+      cell.style.background = v ? piece.color.fill : 'transparent';
+      if(!v) cell.style.boxShadow = 'none';
+      preview.appendChild(cell);
+    }));
+
+    slot.appendChild(preview);
+
+    // ── TOUCH DRAG (mobile) ──
+    slot.addEventListener('touchstart', e => {
+      if(piece.used || !gameActive) return;
+      e.preventDefault();
+      startDrag(idx, e.touches[0].clientX, e.touches[0].clientY);
+    }, {passive: false});
+
+    // ── MOUSE DRAG (desktop) ──
+    slot.addEventListener('mousedown', e => {
+      if(piece.used || !gameActive) return;
+      e.preventDefault();
+      startDrag(idx, e.clientX, e.clientY);
+    });
+
+    tray.appendChild(slot);
+  });
+}
+
+/* ════════════════════════════════════════════
+   DRAG ENGINE — THE KEY PART
+   Uses transform for smooth 60fps movement
+════════════════════════════════════════════ */
+const dragGhost = $('drag-ghost');
+const ghostInner = $('ghost-inner');
+
+function getCellSize(){
+  const gridEl = $('grid');
+  const first = gridEl.firstElementChild;
+  if(!first) return 38;
+  return first.getBoundingClientRect().width;
+}
+
+function startDrag(pieceIdx, clientX, clientY){
+  dragPieceIdx = pieceIdx;
+  isDragging = true;
+  cellPixels = getCellSize();
+
+  const piece = pieces[pieceIdx];
+  const cols = piece.shape[0].length;
+
+  // Build ghost with EXACT grid cell size
+  const CS = cellPixels;
+  ghostInner.style.gridTemplateColumns = `repeat(${cols}, ${CS}px)`;
+  ghostInner.style.gap = '2.5px';
+  ghostInner.innerHTML = '';
+
+  piece.shape.forEach(row => row.forEach(v => {
+    const cell = document.createElement('div');
+    cell.className = 'pm';
+    cell.style.width = CS + 'px';
+    cell.style.height = CS + 'px';
+    cell.style.borderRadius = '5px';
+    cell.style.background = v ? piece.color.fill : 'transparent';
+    cell.style.boxShadow = v ? `inset 0 -3px 0 ${piece.color.shadow}, inset 0 1px 0 rgba(255,255,255,0.3)` : 'none';
+    ghostInner.appendChild(cell);
+  }));
+
+  dragGhost.style.display = 'block';
+  dragGhost.style.opacity = '0.92';
+
+  positionGhost(clientX, clientY);
+  updateDropTarget(clientX, clientY);
+  renderTray();
+  renderGrid();
+}
+
+function positionGhost(clientX, clientY){
+  if(dragPieceIdx < 0) return;
+  const piece = pieces[dragPieceIdx];
+  const cols = piece.shape[0].length;
+  const rows = piece.shape.length;
+  const CS = cellPixels;
+  const GAP = 2.5;
+  const totalW = cols * (CS + GAP) - GAP;
+  const totalH = rows * (CS + GAP) - GAP;
+
+  // Center the ghost on the finger, slightly above
+  const x = clientX - totalW / 2;
+  const y = clientY - totalH / 2 - 28; // lift above finger
+
+  dragGhost.style.transform = `translate(${x}px, ${y}px)`;
+}
+
+function updateDropTarget(clientX, clientY){
+  if(dragPieceIdx < 0 || !pieces[dragPieceIdx]) return;
+
+  const gridEl = $('grid');
+  const rect = gridEl.getBoundingClientRect();
+  const piece = pieces[dragPieceIdx];
+  const rows = piece.shape.length;
+  const cols = piece.shape[0].length;
+
+  // Cell size including gap
+  const cellW = rect.width / GRID_SIZE;
+
+  // Find which cell is at the finger position (adjusted for piece center)
+  const fingerCol = (clientX - rect.left) / cellW;
+  const fingerRow = (clientY - 28 - rect.top) / cellW; // -28 because ghost is lifted
+
+  // Snap to integer, centering the piece on finger
+  const r = Math.round(fingerRow - rows / 2);
+  const c = Math.round(fingerCol - cols / 2);
+
+  dropRow = r;
+  dropCol = c;
+
+  computeGhost(r, c);
+  renderGrid();
+}
+
+/* ── GLOBAL TOUCH EVENTS ── */
+document.addEventListener('touchmove', e => {
+  if(!isDragging) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  positionGhost(t.clientX, t.clientY);
+  updateDropTarget(t.clientX, t.clientY);
+}, {passive: false});
+
+document.addEventListener('touchend', e => {
+  if(!isDragging) return;
+  e.preventDefault();
+  dragGhost.style.display = 'none';
+  isDragging = false;
+
+  if(ghostIsValid && ghostCells.length > 0){
+    placePiece(dropRow, dropCol);
+  } else {
+    ghostCells = []; ghostIsValid = false;
+    dragPieceIdx = -1;
+    renderGrid();
+    renderTray();
+  }
+}, {passive: false});
+
+/* ── GLOBAL MOUSE EVENTS ── */
+document.addEventListener('mousemove', e => {
+  if(!isDragging) return;
+  positionGhost(e.clientX, e.clientY);
+  updateDropTarget(e.clientX, e.clientY);
+});
+
+document.addEventListener('mouseup', e => {
+  if(!isDragging) return;
+  dragGhost.style.display = 'none';
+  isDragging = false;
+
+  if(ghostIsValid && ghostCells.length > 0){
+    placePiece(dropRow, dropCol);
+  } else {
+    ghostCells = []; ghostIsValid = false;
+    dragPieceIdx = -1;
+    renderGrid();
+    renderTray();
+  }
+});
+
+/* ════════════════════════════════════════════
+   HUD UPDATE
+════════════════════════════════════════════ */
+function updateHUD(){
+  $('ui-score').textContent = fmtNum(score);
+  $('ui-best').textContent = fmtNum(best);
+  $('ui-level').textContent = level;
+  $('prog-bar').style.width = Math.min(100, Math.round(xp / (level * 80) * 100)) + '%';
+  if(vsRoom) $('vs-me-pts').textContent = fmtNum(score);
+}
+
+/* ════════════════════════════════════════════
+   FLOATING SCORE ANIMATION
+════════════════════════════════════════════ */
+function showFloatingScore(text, pos, big = false){
+  const el = document.createElement('div');
+  el.className = 'float-pts';
+  el.textContent = text;
+
+  const rect = $('grid').getBoundingClientRect();
+  const cw = rect.width / GRID_SIZE;
+  let x = rect.left + rect.width / 2;
+  let y = rect.top + rect.height / 2;
+
+  if(Array.isArray(pos)){
+    x = rect.left + pos[1] * cw + cw / 2;
+    y = rect.top + pos[0] * cw + cw / 2;
+  }
+
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  el.style.fontSize = big ? '24px' : '16px';
+  el.style.color = big ? '#ffbe0b' : '#4cc9f0';
+
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 950);
+}
+
+/* ════════════════════════════════════════════
+   TOAST
+════════════════════════════════════════════ */
+let toastTimer = null;
+function showToast(msg, duration = 950){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), duration);
+}
+
+/* ════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════ */
+// Pre-fill name
+if(playerName) $('name-input').value = playerName;
+$('ui-best').textContent = fmtNum(best);
+
+// Wire all buttons
+wireButtons();
+
+// Init grid display
+updateHUD();
+renderGrid();
+</script>
+</body>
+</html>
